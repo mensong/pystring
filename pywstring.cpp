@@ -31,7 +31,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ///////////////////////////////////////////////////////////////////////////////
 
-#include "pystring.h"
+#include "pywstring.h"
 
 #include <algorithm>
 #include <cctype>
@@ -52,7 +52,7 @@
 // But in the meantime, the use of int assures maximum arch compatibility.
 // This must also equal the size used in the end = MAX_32BIT_INT default arg.
 
-typedef int Py_ssize_t;
+typedef size_t Py_ssize_t;
 
 /* helper macro to fixup start/end slice values */
 #define ADJUST_INDICES(start, end, len)         \
@@ -72,42 +72,42 @@ typedef int Py_ssize_t;
 
 namespace {
 
-	static inline int py_isspace(int c)
+	static inline int py_isspace(wchar_t c)
 	{
-		return c > 0 && ::isspace(c);
+		return c > 0 && ::iswspace(c);
 	}
 
-	static inline int py_islower(int c)
+	static inline int py_islower(wchar_t c)
 	{
-		return c > 0 && ::islower(c);
+		return c > 0 && ::iswlower(c);
 	}
 
-	static inline int py_isupper(int c)
+	static inline int py_isupper(wchar_t c)
 	{
-		return c > 0 && ::isupper(c);
+		return c > 0 && ::iswupper(c);
 	}
 
-	static inline int py_isdigit(int c)
+	static inline int py_isdigit(wchar_t c)
 	{
-		return c > 0 && ::isdigit(c);
+		return c > 0 && ::iswdigit(c);
 	}
 
-	static inline int py_isalnum(int c)
+	static inline int py_isalnum(wchar_t c)
 	{
-		return c > 0 && ::isalnum(c);
+		return c > 0 && ::iswalnum(c);
 	}
 
-	static inline int py_isalpha(int c)
+	static inline int py_isalpha(wchar_t c)
 	{
-		return c > 0 && ::isalpha(c);
+		return c > 0 && ::iswalpha(c);
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	/// why doesn't the std::reverse work?
 	///
-	static void reverse_strings(std::vector< std::string > & result)
+	static void reverse_strings(std::vector< std::wstring > & result)
 	{
-		for (std::vector< std::string >::size_type i = 0; i < result.size() / 2; i++)
+		for (std::vector< std::wstring >::size_type i = 0; i < result.size() / 2; i++)
 		{
 			std::swap(result[i], result[result.size() - 1 - i]);
 		}
@@ -116,9 +116,9 @@ namespace {
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	///
 	///
-	static void split_whitespace(const std::string & str, std::vector< std::string > & result, int maxsplit)
+	static void split_whitespace(const std::wstring & str, std::vector< std::wstring > & result, int maxsplit)
 	{
-		std::string::size_type i, j, len = str.size();
+		std::wstring::size_type i, j, len = str.size();
 		for (i = j = 0; i < len; )
 		{
 
@@ -149,10 +149,10 @@ namespace {
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	///
 	///
-	static void rsplit_whitespace(const std::string & str, std::vector< std::string > & result, int maxsplit)
+	static void rsplit_whitespace(const std::wstring & str, std::vector< std::wstring > & result, int maxsplit)
 	{
-		std::string::size_type len = str.size();
-		std::string::size_type i, j;
+		std::wstring::size_type len = str.size();
+		std::wstring::size_type i, j;
 		for (i = j = len; i > 0; )
 		{
 
@@ -180,19 +180,13 @@ namespace {
 		//std::reverse( result, result.begin(), result.end() );
 		reverse_strings(result);
 	}
-
-	static bool matchBom(const BYTE* pBom, int szBom, const char* data, size_t size)
-	{
-		return (size >= static_cast<size_t>(szBom)) &&
-			!memcmp(data, pBom, sizeof(BYTE) * szBom);
-	};
 } //anonymous namespace
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-void pystring::split(const std::string & str, std::vector< std::string > & result, const std::string & sep, int maxsplit)
+void pywstring::split(const std::wstring & str, std::vector< std::wstring > & result, const std::wstring & sep, int maxsplit)
 {
 	result.clear();
 
@@ -205,7 +199,7 @@ void pystring::split(const std::string & str, std::vector< std::string > & resul
 		return;
 	}
 
-	std::string::size_type i, j, len = str.size(), n = sep.size();
+	std::wstring::size_type i, j, len = str.size(), n = sep.size();
 
 	i = j = 0;
 
@@ -230,7 +224,7 @@ void pystring::split(const std::string & str, std::vector< std::string > & resul
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-void pystring::rsplit(const std::string & str, std::vector< std::string > & result, const std::string & sep, int maxsplit)
+void pywstring::rsplit(const std::wstring & str, std::vector< std::wstring > & result, const std::wstring & sep, int maxsplit)
 {
 	if (maxsplit < 0)
 	{
@@ -279,7 +273,7 @@ void pystring::rsplit(const std::string & str, std::vector< std::string > & resu
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-static std::string do_strip(const std::string & str, int striptype, const std::string & chars)
+static std::wstring do_strip(const std::wstring & str, int striptype, const std::wstring & chars)
 {
 	Py_ssize_t len = (Py_ssize_t)str.size(), i, j, charslen = (Py_ssize_t)chars.size();
 	if (len == 0)
@@ -311,12 +305,12 @@ static std::string do_strip(const std::string & str, int striptype, const std::s
 	}
 	else
 	{
-		const char * sep = chars.c_str();
+		const wchar_t * sep = chars.c_str();
 
 		i = 0;
 		if (striptype != RIGHTSTRIP)
 		{
-			while (i < len && memchr(sep, str[i], charslen))
+			while (i < len && wmemchr(sep, str[i], charslen))
 			{
 				i++;
 			}
@@ -328,7 +322,7 @@ static std::string do_strip(const std::string & str, int striptype, const std::s
 			do
 			{
 				j--;
-			} while (j >= i &&  memchr(sep, str[j], charslen));
+			} while (j >= i &&  wmemchr(sep, str[j], charslen));
 			j++;
 		}
 
@@ -349,15 +343,15 @@ static std::string do_strip(const std::string & str, int striptype, const std::s
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-void pystring::partition(const std::string & str, const std::string & sep, std::vector< std::string > & result)
+void pywstring::partition(const std::wstring & str, const std::wstring & sep, std::vector< std::wstring > & result)
 {
 	result.resize(3);
 	int index = find(str, sep);
 	if (index < 0)
 	{
 		result[0] = str;
-		result[1] = "";
-		result[2] = "";
+		result[1] = L"";
+		result[2] = L"";
 	}
 	else
 	{
@@ -370,14 +364,14 @@ void pystring::partition(const std::string & str, const std::string & sep, std::
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-void pystring::rpartition(const std::string & str, const std::string & sep, std::vector< std::string > & result)
+void pywstring::rpartition(const std::wstring & str, const std::wstring & sep, std::vector< std::wstring > & result)
 {
 	result.resize(3);
 	int index = rfind(str, sep);
 	if (index < 0)
 	{
-		result[0] = "";
-		result[1] = "";
+		result[0] = L"";
+		result[1] = L"";
 		result[2] = str;
 	}
 	else
@@ -391,7 +385,7 @@ void pystring::rpartition(const std::string & str, const std::string & sep, std:
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::strip(const std::string & str, const std::string & chars)
+std::wstring pywstring::strip(const std::wstring & str, const std::wstring & chars)
 {
 	return do_strip(str, BOTHSTRIP, chars);
 }
@@ -399,7 +393,7 @@ std::string pystring::strip(const std::string & str, const std::string & chars)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::lstrip(const std::string & str, const std::string & chars)
+std::wstring pywstring::lstrip(const std::wstring & str, const std::wstring & chars)
 {
 	return do_strip(str, LEFTSTRIP, chars);
 }
@@ -407,7 +401,7 @@ std::string pystring::lstrip(const std::string & str, const std::string & chars)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::rstrip(const std::string & str, const std::string & chars)
+std::wstring pywstring::rstrip(const std::wstring & str, const std::wstring & chars)
 {
 	return do_strip(str, RIGHTSTRIP, chars);
 }
@@ -415,14 +409,14 @@ std::string pystring::rstrip(const std::string & str, const std::string & chars)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::join(const std::string & str, const std::vector< std::string > & seq)
+std::wstring pywstring::join(const std::wstring & str, const std::vector< std::wstring > & seq)
 {
-	std::vector< std::string >::size_type seqlen = seq.size(), i;
+	std::vector< std::wstring >::size_type seqlen = seq.size(), i;
 
-	if (seqlen == 0) return "";
+	if (seqlen == 0) return L"";
 	if (seqlen == 1) return seq[0];
 
-	std::string result(seq[0]);
+	std::wstring result(seq[0]);
 
 	for (i = 1; i < seqlen; ++i)
 	{
@@ -446,15 +440,15 @@ namespace
 	 * -1 on error, 0 if not found and 1 if found.
 	 */
 
-	static int _string_tailmatch(const std::string & self, const std::string & substr,
+	static int _string_tailmatch(const std::wstring & self, const std::wstring & substr,
 		Py_ssize_t start, Py_ssize_t end,
 		int direction)
 	{
 		Py_ssize_t len = (Py_ssize_t)self.size();
 		Py_ssize_t slen = (Py_ssize_t)substr.size();
 
-		const char* sub = substr.c_str();
-		const char* str = self.c_str();
+		const wchar_t* sub = substr.c_str();
+		const wchar_t* str = self.c_str();
 
 		ADJUST_INDICES(start, end, len);
 
@@ -471,13 +465,13 @@ namespace
 				start = end - slen;
 		}
 		if (end - start >= slen)
-			return (!std::memcmp(str + start, sub, slen));
+			return (!std::wmemcmp(str + start, sub, slen));
 
 		return 0;
 	}
 }
 
-bool pystring::endswith(const std::string & str, const std::string & suffix, int start, int end)
+bool pywstring::endswith(const std::wstring & str, const std::wstring & suffix, int start, int end)
 {
 	int result = _string_tailmatch(str, suffix,
 		(Py_ssize_t)start, (Py_ssize_t)end, +1);
@@ -487,7 +481,7 @@ bool pystring::endswith(const std::string & str, const std::string & suffix, int
 }
 
 
-bool pystring::startswith(const std::string & str, const std::string & prefix, int start, int end)
+bool pywstring::startswith(const std::wstring & str, const std::wstring & prefix, int start, int end)
 {
 	int result = _string_tailmatch(str, prefix,
 		(Py_ssize_t)start, (Py_ssize_t)end, -1);
@@ -500,9 +494,9 @@ bool pystring::startswith(const std::string & str, const std::string & prefix, i
 ///
 ///
 
-bool pystring::isalnum(const std::string & str)
+bool pywstring::isalnum(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 
 
@@ -521,9 +515,9 @@ bool pystring::isalnum(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::isalpha(const std::string & str)
+bool pywstring::isalpha(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 	if (len == 1) return py_isalpha((int)str[0]);
 
@@ -537,9 +531,9 @@ bool pystring::isalpha(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::isdigit(const std::string & str)
+bool pywstring::isdigit(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 	if (len == 1) return py_isdigit(str[0]);
 
@@ -553,9 +547,9 @@ bool pystring::isdigit(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::islower(const std::string & str)
+bool pywstring::islower(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 	if (len == 1) return py_islower(str[0]);
 
@@ -569,9 +563,9 @@ bool pystring::islower(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::isspace(const std::string & str)
+bool pywstring::isspace(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 	if (len == 1) return py_isspace(str[0]);
 
@@ -585,9 +579,9 @@ bool pystring::isspace(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::istitle(const std::string & str)
+bool pywstring::istitle(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 
 	if (len == 0) return false;
 	if (len == 1) return py_isupper(str[0]);
@@ -629,9 +623,9 @@ bool pystring::istitle(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-bool pystring::isupper(const std::string & str)
+bool pywstring::isupper(const std::wstring & str)
 {
-	std::string::size_type len = str.size(), i;
+	std::wstring::size_type len = str.size(), i;
 	if (len == 0) return false;
 	if (len == 1) return py_isupper(str[0]);
 
@@ -645,19 +639,19 @@ bool pystring::isupper(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::capitalize(const std::string & str)
+std::wstring pywstring::capitalize(const std::wstring & str)
 {
-	std::string s(str);
-	std::string::size_type len = s.size(), i;
+	std::wstring s(str);
+	std::wstring::size_type len = s.size(), i;
 
 	if (len > 0)
 	{
-		if (py_islower(s[0])) s[0] = (char) ::toupper(s[0]);
+		if (py_islower(s[0])) s[0] = (wchar_t) ::towupper(s[0]);
 	}
 
 	for (i = 1; i < len; ++i)
 	{
-		if (py_isupper(s[i])) s[i] = (char) ::tolower(s[i]);
+		if (py_isupper(s[i])) s[i] = (wchar_t) ::towlower(s[i]);
 	}
 
 	return s;
@@ -666,14 +660,14 @@ std::string pystring::capitalize(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::lower(const std::string & str)
+std::wstring pywstring::lower(const std::wstring & str)
 {
-	std::string s(str);
-	std::string::size_type len = s.size(), i;
+	std::wstring s(str);
+	std::wstring::size_type len = s.size(), i;
 
 	for (i = 0; i < len; ++i)
 	{
-		if (py_isupper(s[i])) s[i] = (char) ::tolower(s[i]);
+		if (py_isupper(s[i])) s[i] = (wchar_t) ::towlower(s[i]);
 	}
 
 	return s;
@@ -682,14 +676,14 @@ std::string pystring::lower(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::upper(const std::string & str)
+std::wstring pywstring::upper(const std::wstring & str)
 {
-	std::string s(str);
-	std::string::size_type len = s.size(), i;
+	std::wstring s(str);
+	std::wstring::size_type len = s.size(), i;
 
 	for (i = 0; i < len; ++i)
 	{
-		if (py_islower(s[i])) s[i] = (char) ::toupper(s[i]);
+		if (py_islower(s[i])) s[i] = (wchar_t) ::towupper(s[i]);
 	}
 
 	return s;
@@ -698,15 +692,15 @@ std::string pystring::upper(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::swapcase(const std::string & str)
+std::wstring pywstring::swapcase(const std::wstring & str)
 {
-	std::string s(str);
-	std::string::size_type len = s.size(), i;
+	std::wstring s(str);
+	std::wstring::size_type len = s.size(), i;
 
 	for (i = 0; i < len; ++i)
 	{
-		if (py_islower(s[i])) s[i] = (char) ::toupper(s[i]);
-		else if (py_isupper(s[i])) s[i] = (char) ::tolower(s[i]);
+		if (py_islower(s[i])) s[i] = (wchar_t) ::towupper(s[i]);
+		else if (py_isupper(s[i])) s[i] = (wchar_t) ::towlower(s[i]);
 	}
 
 	return s;
@@ -715,10 +709,10 @@ std::string pystring::swapcase(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::title(const std::string & str)
+std::wstring pywstring::title(const std::wstring & str)
 {
-	std::string s(str);
-	std::string::size_type len = s.size(), i;
+	std::wstring s(str);
+	std::wstring::size_type len = s.size(), i;
 	bool previous_is_cased = false;
 
 	for (i = 0; i < len; ++i)
@@ -728,7 +722,7 @@ std::string pystring::title(const std::string & str)
 		{
 			if (!previous_is_cased)
 			{
-				s[i] = (char) ::toupper(c);
+				s[i] = (wchar_t) ::towupper(c);
 			}
 			previous_is_cased = true;
 		}
@@ -736,7 +730,7 @@ std::string pystring::title(const std::string & str)
 		{
 			if (previous_is_cased)
 			{
-				s[i] = (char) ::tolower(c);
+				s[i] = (wchar_t) ::towlower(c);
 			}
 			previous_is_cased = true;
 		}
@@ -752,10 +746,10 @@ std::string pystring::title(const std::string & str)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::translate(const std::string & str, const std::string & table, const std::string & deletechars)
+std::wstring pywstring::translate(const std::wstring & str, const std::wstring & table, const std::wstring & deletechars)
 {
-	std::string s;
-	std::string::size_type len = str.size(), dellen = deletechars.size();
+	std::wstring s;
+	std::wstring::size_type len = str.size(), dellen = deletechars.size();
 
 	if (table.size() != 256)
 	{
@@ -767,7 +761,7 @@ std::string pystring::translate(const std::string & str, const std::string & tab
 	if (dellen == 0)
 	{
 		s = str;
-		for (std::string::size_type i = 0; i < len; ++i)
+		for (std::wstring::size_type i = 0; i < len; ++i)
 		{
 			s[i] = table[s[i]];
 		}
@@ -781,12 +775,12 @@ std::string pystring::translate(const std::string & str, const std::string & tab
 		trans_table[i] = table[i];
 	}
 
-	for (std::string::size_type i = 0; i < dellen; i++)
+	for (std::wstring::size_type i = 0; i < dellen; i++)
 	{
 		trans_table[(int)deletechars[i]] = -1;
 	}
 
-	for (std::string::size_type i = 0; i < len; ++i)
+	for (std::wstring::size_type i = 0; i < len; ++i)
 	{
 		if (trans_table[(int)str[i]] != -1)
 		{
@@ -802,7 +796,7 @@ std::string pystring::translate(const std::string & str, const std::string & tab
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::zfill(const std::string & str, int width, char fillChar/* = '0'*/)
+std::wstring pywstring::zfill(const std::wstring & str, int width, wchar_t fillChar/* = '0'*/)
 {
 	int len = (int)str.size();
 
@@ -811,11 +805,11 @@ std::string pystring::zfill(const std::string & str, int width, char fillChar/* 
 		return str;
 	}
 
-	std::string s(str);
+	std::wstring s(str);
 
 	int fill = width - len;
 
-	s = std::string(fill, fillChar) + s;
+	s = std::wstring(fill, fillChar) + s;
 
 
 	if (s[fill] == '+' || s[fill] == '-')
@@ -831,27 +825,27 @@ std::string pystring::zfill(const std::string & str, int width, char fillChar/* 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::ljust(const std::string & str, int width)
+std::wstring pywstring::ljust(const std::wstring & str, int width)
 {
-	std::string::size_type len = str.size();
+	std::wstring::size_type len = str.size();
 	if (((int)len) >= width) return str;
-	return str + std::string(width - len, ' ');
+	return str + std::wstring(width - len, ' ');
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string rjust(const std::string & str, int width)
+std::wstring pywstring::rjust(const std::wstring & str, int width)
 {
-	std::string::size_type len = str.size();
+	std::wstring::size_type len = str.size();
 	if (((int)len) >= width) return str;
-	return std::string(width - len, ' ') + str;
+	return std::wstring(width - len, ' ') + str;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::center(const std::string & str, int width)
+std::wstring pywstring::center(const std::wstring & str, int width)
 {
 	int len = (int)str.size();
 	int marg, left;
@@ -861,25 +855,25 @@ std::string pystring::center(const std::string & str, int width)
 	marg = width - len;
 	left = marg / 2 + (marg & width & 1);
 
-	return std::string(left, ' ') + str + std::string(marg - left, ' ');
+	return std::wstring(left, ' ') + str + std::wstring(marg - left, ' ');
 
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::slice(const std::string & str, int start, int end)
+std::wstring pywstring::slice(const std::wstring & str, int start, int end)
 {
 	ADJUST_INDICES(start, end, (int)str.size());
-	if (start >= end) return "";
-	if (str.size() <= start) return "";
+	if (start >= end) return L"";
+	if (str.size() <= start) return L"";
 	return str.substr(start, end - start);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::alignment(const std::string& str, int maxLen, int align /*= 0*/, char fillChar /*= ' ' */)
+std::wstring pywstring::alignment(const std::wstring& str, int maxLen, int align /*= 0*/, wchar_t fillChar /*= ' ' */)
 {
 	int fillLen = maxLen - str.length();
 	if (fillLen < 1)
@@ -887,181 +881,55 @@ std::string pystring::alignment(const std::string& str, int maxLen, int align /*
 
 	if (align == 0)//left alignment
 	{
-		return str + std::string(fillLen, fillChar);
+		return str + std::wstring(fillLen, fillChar);
 	}
 	else if (align == 1)//center alignment 
 	{
-		std::string sRet;
+		std::wstring sRet;
 		int left = (int)fillLen / (int)2;
 		if (left > 0)
-			sRet += std::string(left, fillChar);
+			sRet += std::wstring(left, fillChar);
 		sRet += str;
 		int right = fillLen - left;
 		if (right > 0)
-			sRet += std::string(right, fillChar);
+			sRet += std::wstring(right, fillChar);
 		return sRet;
 	}
 
 	return str;
 }
 
-bool pystring::iscempty(const std::string& str)
+bool pywstring::iscempty(const std::wstring& str)
 {
 	return (length(str) == 0);
 }
 
-bool pystring::equal(const std::string& str1, const std::string& str2, bool ignoreCase/* = false*/)
+bool pywstring::equal(const std::wstring& str1, const std::wstring& str2, bool ignoreCase/* = false*/)
 {
 	if (ignoreCase)
-		return _stricmp(str1.c_str(), str2.c_str()) == 0;
+		return _wcsicmp(str1.c_str(), str2.c_str()) == 0;
 	else
-		return strcmp(str1.c_str(), str2.c_str()) == 0;
+		return wcscmp(str1.c_str(), str2.c_str()) == 0;
 }
 
-std::string pystring::concat(const std::string& left, const std::string& right)
+std::wstring pywstring::concat(const std::wstring& left, const std::wstring& right)
 {
-	return std::string(left.c_str()) + std::string(right.c_str());
-}
-
-bool pystring::is_utf8(const char* str, int len)
-{
-	int bytes = 0;
-	bool allAscii = true;
-	for (int i = 0; i < len; i++)
-	{
-		unsigned char c = str[i];
-		if (c & 0x80)
-			allAscii = false;
-		if (bytes == 0)
-		{
-			if (c & 0x80)
-			{
-				while (c & 0x80)
-				{
-					c <<= 1;
-					bytes += 1;
-				}
-				if (bytes < 2 && bytes>6)
-					return false;
-				bytes--;
-			}
-		}
-		else
-		{
-			if ((c & 0xc0) != 0x80)
-				return false;
-			bytes--;
-		}
-	}
-	if (allAscii)
-		return false;
-	return bytes == 0;
-}
-
-encoding_info pystring::get_encoding(const char* data, size_t size)
-{	
-	// https://en.wikipedia.org/wiki/Byte_order_mark
-
-	encoding_info ret;
-
-	BYTE utf8[] = { 0xEF, 0xBB, 0xBF }; // UTF-8 BOM
-	if (matchBom(utf8, 3, data, size))
-	{
-		ret.encType = encoding::UTF8;
-		ret.bomSize = 3;
-		return ret; // BOM size in bytes
-	}
-
-	BYTE utf16be[] = { 0xFE, 0xFF };
-	if (matchBom(utf16be, 2, data, size)) 
-	{
-		ret.encType = encoding::UTF16BE;
-		ret.bomSize = 2;
-		return ret;
-	}
-
-	BYTE utf16le[] = { 0xFF, 0xFE };
-	if (matchBom(utf16le, 2, data, size))
-	{
-		ret.encType = encoding::UTF16LE;
-		ret.bomSize = 2;
-		return ret;
-	}
-
-	BYTE utf32be[] = { 0x00, 0x00, 0xFE, 0xFF };
-	if (matchBom(utf32be, 4, data, size)) 
-	{
-		ret.encType = encoding::UTF32BE;
-		ret.bomSize = 4;
-		return ret;
-	}
-
-	BYTE utf32le[] = { 0xFF, 0xFE, 0x00, 0x00 };
-	if (matchBom(utf32le, 4, data, size)) 
-	{
-		ret.encType = encoding::UTF32LE;
-		ret.bomSize = 4;
-		return ret;
-	}
-
-	BYTE scsu[] = { 0x0E, 0xFE, 0xFF };
-	if (matchBom(scsu, 3, data, size)) 
-	{
-		ret.encType = encoding::SCSU;
-		ret.bomSize = 3;
-		return ret;
-	}
-
-	BYTE bocu1[] = { 0xFB, 0xEE, 0x28 };
-	if (matchBom(bocu1, 3, data, size)) 
-	{
-		ret.encType = encoding::BOCU1;
-		ret.bomSize = 3;
-		return ret;
-	}
-
-	// No BOM found, guess UTF-8 without BOM
-	if (is_utf8(data, size))
-	{
-		ret.encType = encoding::UTF8;
-		ret.bomSize = 0;
-		return ret;
-	}
-
-	//Windows-1252 (superset of ISO-8859-1).
-	bool canBeWin1252 = false;
-	for (size_t i = 0; i < size; ++i)
-	{
-		if (data[i] > 0x7F)
-		{ // 127
-			canBeWin1252 = true;
-			break;
-		}
-	}
-
-	ret.encType = (canBeWin1252 ? encoding::WIN1252 : encoding::ASCII);
-	ret.bomSize = 0;
-	return ret;
-}
-
-encoding_info pystring::get_encoding(const std::string& data)
-{
-	return get_encoding(&data[0], data.size());
+	return std::wstring(left.c_str()) + std::wstring(right.c_str());
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-int pystring::find(const std::string & str, const std::string & sub, int start, int end)
+int pywstring::find(const std::wstring & str, const std::wstring & sub, int start, int end)
 {
 	ADJUST_INDICES(start, end, (int)str.size());
 
-	std::string::size_type result = str.find(sub, start);
+	std::wstring::size_type result = str.find(sub, start);
 
 	// If we cannot find the string, or if the end-point of our found substring is past
 	// the allowed end limit, return that it can't be found.
-	if (result == std::string::npos ||
-		(result + sub.size() > (std::string::size_type)end))
+	if (result == std::wstring::npos ||
+		(result + sub.size() > (std::wstring::size_type)end))
 	{
 		return -1;
 	}
@@ -1072,7 +940,7 @@ int pystring::find(const std::string & str, const std::string & sub, int start, 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-int pystring::index(const std::string & str, const std::string & sub, int start, int end)
+int pywstring::index(const std::wstring & str, const std::wstring & sub, int start, int end)
 {
 	return find(str, sub, start, end);
 }
@@ -1080,15 +948,15 @@ int pystring::index(const std::string & str, const std::string & sub, int start,
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-int pystring::rfind(const std::string & str, const std::string & sub, int start, int end)
+int pywstring::rfind(const std::wstring & str, const std::wstring & sub, int start, int end)
 {
 	ADJUST_INDICES(start, end, (int)str.size());
 
-	std::string::size_type result = str.rfind(sub, end);
+	std::wstring::size_type result = str.rfind(sub, end);
 
-	if (result == std::string::npos ||
-		result < (std::string::size_type)start ||
-		(result + sub.size() > (std::string::size_type)end))
+	if (result == std::wstring::npos ||
+		result < (std::wstring::size_type)start ||
+		(result + sub.size() > (std::wstring::size_type)end))
 		return -1;
 
 	return (int)result;
@@ -1097,7 +965,7 @@ int pystring::rfind(const std::string & str, const std::string & sub, int start,
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-int pystring::rindex(const std::string & str, const std::string & sub, int start, int end)
+int pywstring::rindex(const std::wstring & str, const std::wstring & sub, int start, int end)
 {
 	return rfind(str, sub, start, end);
 }
@@ -1105,11 +973,11 @@ int pystring::rindex(const std::string & str, const std::string & sub, int start
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::expandtabs(const std::string & str, int tabsize)
+std::wstring pywstring::expandtabs(const std::wstring & str, int tabsize)
 {
-	std::string s(str);
+	std::wstring s(str);
 
-	std::string::size_type len = str.size(), i = 0;
+	std::wstring::size_type len = str.size(), i = 0;
 	int offset = 0;
 
 	int j = 0;
@@ -1123,12 +991,12 @@ std::string pystring::expandtabs(const std::string & str, int tabsize)
 			{
 				int fillsize = tabsize - (j % tabsize);
 				j += fillsize;
-				s.replace(i + offset, 1, std::string(fillsize, ' '));
+				s.replace(i + offset, 1, std::wstring(fillsize, ' '));
 				offset += fillsize - 1;
 			}
 			else
 			{
-				s.replace(i + offset, 1, "");
+				s.replace(i + offset, 1, L"");
 				offset -= 1;
 			}
 
@@ -1150,7 +1018,7 @@ std::string pystring::expandtabs(const std::string & str, int tabsize)
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-int pystring::count(const std::string & str, const std::string & substr, int start, int end)
+int pywstring::count(const std::wstring & str, const std::wstring & substr, int start, int end)
 {
 	int nummatches = 0;
 	int cursor = start;
@@ -1174,13 +1042,13 @@ int pystring::count(const std::string & str, const std::string & substr, int sta
 ///
 ///
 
-std::string pystring::replace(const std::string & str, const std::string & oldstr, const std::string & newstr, int count)
+std::wstring pywstring::replace(const std::wstring & str, const std::wstring & oldstr, const std::wstring & newstr, int count)
 {
 	int sofar = 0;
 	int cursor = 0;
-	std::string s(str);
+	std::wstring s(str);
 
-	std::string::size_type oldlen = oldstr.size(), newlen = newstr.size();
+	std::wstring::size_type oldlen = oldstr.size(), newlen = newstr.size();
 
 	cursor = find(s, oldstr, cursor);
 
@@ -1214,10 +1082,10 @@ std::string pystring::replace(const std::string & str, const std::string & oldst
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-void pystring::splitlines(const std::string & str, std::vector< std::string > & result, bool keepends)
+void pywstring::splitlines(const std::wstring & str, std::vector< std::wstring > & result, bool keepends)
 {
 	result.clear();
-	std::string::size_type len = str.size(), i, j, eol;
+	std::wstring::size_type len = str.size(), i, j, eol;
 
 	for (i = j = 0; i < len; )
 	{
@@ -1254,20 +1122,19 @@ void pystring::splitlines(const std::string & str, std::vector< std::string > & 
 //////////////////////////////////////////////////////////////////////////////////////////////
 ///
 ///
-std::string pystring::mul(const std::string & str, int n)
+std::wstring pywstring::mul(const std::wstring & str, int n)
 {
 	// Early exits
-	if (n <= 0) return "";
+	if (n <= 0) return L"";
 	if (n == 1) return str;
 
-	std::ostringstream os;
+	std::wostringstream os;
 	for (int i = 0; i < n; ++i)
 	{
 		os << str;
 	}
 	return os.str();
 }
-
 
 
 
@@ -1279,32 +1146,32 @@ std::string pystring::mul(const std::string & str, int n)
 
 /// Split a pathname into drive and path specifiers.
 /// Returns drivespec, pathspec. Either part may be empty.
-void os_path::splitdrive_nt(std::string & drivespec, std::string & pathspec,
-	const std::string & p)
+void os_pathw::splitdrive_nt(std::wstring & drivespec, std::wstring & pathspec,
+	const std::wstring & p)
 {
-	if (pystring::slice(p, 1, 2) == ":")
+	if (pywstring::slice(p, 1, 2) == L":")
 	{
-		std::string path = p; // In case drivespec == p
-		drivespec = pystring::slice(path, 0, 2);
-		pathspec = pystring::slice(path, 2);
+		std::wstring path = p; // In case drivespec == p
+		drivespec = pywstring::slice(path, 0, 2);
+		pathspec = pywstring::slice(path, 2);
 	}
 	else
 	{
-		drivespec = "";
+		drivespec = L"";
 		pathspec = p;
 	}
 }
 
 // On Posix, drive is always empty
-void os_path::splitdrive_posix(std::string & drivespec, std::string & pathspec,
-	const std::string & path)
+void os_pathw::splitdrive_posix(std::wstring & drivespec, std::wstring & pathspec,
+	const std::wstring & path)
 {
-	drivespec = "";
+	drivespec = L"";
 	pathspec = path;
 }
 
-void os_path::splitdrive(std::string & drivespec, std::string & pathspec,
-	const std::string & path)
+void os_pathw::splitdrive(std::wstring & drivespec, std::wstring & pathspec,
+	const std::wstring & path)
 {
 #ifdef WINDOWS
 	return splitdrive_nt(drivespec, pathspec, path);
@@ -1320,20 +1187,20 @@ void os_path::splitdrive(std::string & drivespec, std::string & pathspec,
 // Test whether a path is absolute
 // In windows, if the character to the right of the colon
 // is a forward or backslash it's absolute.
-bool os_path::isabs_nt(const std::string & path)
+bool os_pathw::isabs_nt(const std::wstring & path)
 {
-	std::string drivespec, pathspec;
+	std::wstring drivespec, pathspec;
 	splitdrive_nt(drivespec, pathspec, path);
 	if (pathspec.empty()) return false;
 	return ((pathspec[0] == '/') || (pathspec[0] == '\\'));
 }
 
-bool os_path::isabs_posix(const std::string & s)
+bool os_pathw::isabs_posix(const std::wstring & s)
 {
-	return pystring::startswith(s, "/");
+	return pywstring::startswith(s, L"/");
 }
 
-bool os_path::isabs(const std::string & path)
+bool os_pathw::isabs(const std::wstring & path)
 {
 #ifdef WINDOWS
 	return isabs_nt(path);
@@ -1347,21 +1214,21 @@ bool os_path::isabs(const std::string & path)
 ///
 ///
 
-std::string os_path::abspath_nt(const std::string & path, const std::string & cwd)
+std::wstring os_pathw::abspath_nt(const std::wstring & path, const std::wstring & cwd)
 {
-	std::string p = path;
+	std::wstring p = path;
 	if (!isabs_nt(p)) p = join_nt(cwd, p);
 	return normpath_nt(p);
 }
 
-std::string os_path::abspath_posix(const std::string & path, const std::string & cwd)
+std::wstring os_pathw::abspath_posix(const std::wstring & path, const std::wstring & cwd)
 {
-	std::string p = path;
+	std::wstring p = path;
 	if (!isabs_posix(p)) p = join_posix(cwd, p);
 	return normpath_posix(p);
 }
 
-std::string os_path::abspath(const std::string & path, const std::string & cwd)
+std::wstring os_pathw::abspath(const std::wstring & path, const std::wstring & cwd)
 {
 #ifdef WINDOWS
 	return abspath_nt(path, cwd);
@@ -1375,16 +1242,16 @@ std::string os_path::abspath(const std::string & path, const std::string & cwd)
 ///
 ///
 
-std::string os_path::join_nt(const std::vector< std::string > & paths)
+std::wstring os_pathw::join_nt(const std::vector< std::wstring > & paths)
 {
-	if (paths.empty()) return "";
+	if (paths.empty()) return L"";
 	if (paths.size() == 1) return paths[0];
 
-	std::string path = paths[0].c_str();
+	std::wstring path = paths[0].c_str();
 
 	for (unsigned int i = 1; i < paths.size(); ++i)
 	{
-		std::string b = paths[i];
+		std::wstring b = paths[i];
 
 		bool b_nts = false;
 		if (path.empty())
@@ -1402,15 +1269,15 @@ std::string os_path::join_nt(const std::vector< std::string > & paths)
 			//     4. join('c:', 'd:/') = 'd:/'
 			//     5. join('c:/', 'd:/') = 'd:/'
 
-			if ((pystring::slice(path, 1, 2) != ":") ||
-				(pystring::slice(b, 1, 2) == ":"))
+			if ((pywstring::slice(path, 1, 2) != L":") ||
+				(pywstring::slice(b, 1, 2) == L":"))
 			{
 				// Path doesnt start with a drive letter
 				b_nts = true;
 			}
 			// Else path has a drive letter, and b doesn't but is absolute.
 			else if ((path.size() > 3) ||
-				((path.size() == 3) && !pystring::endswith(path, "/") && !pystring::endswith(path, "\\")))
+				((path.size() == 3) && !pywstring::endswith(path, L"/") && !pywstring::endswith(path, L"\\")))
 			{
 				b_nts = true;
 			}
@@ -1424,30 +1291,30 @@ std::string os_path::join_nt(const std::vector< std::string > & paths)
 		{
 			// Join, and ensure there's a separator.
 			// assert len(path) > 0
-			if (pystring::endswith(path, "/") || pystring::endswith(path, "\\"))
+			if (pywstring::endswith(path, L"/") || pywstring::endswith(path, L"\\"))
 			{
-				if (pystring::startswith(b, "/") || pystring::startswith(b, "\\"))
+				if (pywstring::startswith(b, L"/") || pywstring::startswith(b, L"\\"))
 				{
-					path += pystring::slice(b, 1);
+					path += pywstring::slice(b, 1);
 				}
 				else
 				{
 					path += b;
 				}
 			}
-			else if (pystring::endswith(path, ":"))
+			else if (pywstring::endswith(path, L":"))
 			{
-				path += "\\" + b;
+				path += L"\\" + b;
 			}
 			else if (!b.empty())
 			{
-				if (pystring::startswith(b, "/") || pystring::startswith(b, "\\"))
+				if (pywstring::startswith(b, L"/") || pywstring::startswith(b, L"\\"))
 				{
 					path += b;
 				}
 				else
 				{
-					path += "\\" + b;
+					path += L"\\" + b;
 				}
 			}
 			else
@@ -1456,7 +1323,7 @@ std::string os_path::join_nt(const std::vector< std::string > & paths)
 				// but b is empty; since, e.g., split('a/') produces
 				// ('a', ''), it's best if join() adds a backslash in
 				// this case.
-				path += "\\";
+				path += L"\\";
 			}
 		}
 	}
@@ -1465,9 +1332,9 @@ std::string os_path::join_nt(const std::vector< std::string > & paths)
 }
 
 // Join two or more pathname components, inserting "\\" as needed.
-std::string os_path::join_nt(const std::string & a, const std::string & b)
+std::wstring os_pathw::join_nt(const std::wstring & a, const std::wstring & b)
 {
-	std::vector< std::string > paths(2);
+	std::vector< std::wstring > paths(2);
 	paths[0] = a;
 	paths[1] = b;
 	return join_nt(paths);
@@ -1479,42 +1346,42 @@ std::string os_path::join_nt(const std::string & a, const std::string & b)
 // Ignore the previous parts if a part is absolute.
 // Insert a '/' unless the first part is empty or already ends in '/'.
 
-std::string os_path::join_posix(const std::vector< std::string > & paths)
+std::wstring os_pathw::join_posix(const std::vector< std::wstring > & paths)
 {
-	if (paths.empty()) return "";
+	if (paths.empty()) return L"";
 	if (paths.size() == 1) return paths[0];
 
-	std::string path = paths[0].c_str();
+	std::wstring path = paths[0].c_str();
 
 	for (unsigned int i = 1; i < paths.size(); ++i)
 	{
-		std::string b = paths[i];
-		if (pystring::startswith(b, "/"))
+		std::wstring b = paths[i];
+		if (pywstring::startswith(b, L"/"))
 		{
 			path = b;
 		}
-		else if (path.empty() || pystring::endswith(path, "/"))
+		else if (path.empty() || pywstring::endswith(path, L"/"))
 		{
 			path += b;
 		}
 		else
 		{
-			path += "/" + b;
+			path += L"/" + b;
 		}
 	}
 
 	return path;
 }
 
-std::string os_path::join_posix(const std::string & a, const std::string & b)
+std::wstring os_pathw::join_posix(const std::wstring & a, const std::wstring & b)
 {
-	std::vector< std::string > paths(2);
+	std::vector< std::wstring > paths(2);
 	paths[0] = a;
 	paths[1] = b;
 	return join_posix(paths);
 }
 
-std::string os_path::join(const std::string & path1, const std::string & path2)
+std::wstring os_pathw::join(const std::wstring & path1, const std::wstring & path2)
 {
 #ifdef WINDOWS
 	return join_nt(path1, path2);
@@ -1524,7 +1391,7 @@ std::string os_path::join(const std::string & path1, const std::string & path2)
 }
 
 
-std::string os_path::join(const std::vector< std::string > & paths)
+std::wstring os_pathw::join(const std::vector< std::wstring > & paths)
 {
 #ifdef WINDOWS
 	return join_nt(paths);
@@ -1542,10 +1409,10 @@ std::string os_path::join(const std::vector< std::string > & paths)
 // Return (head, tail) where tail is everything after the final slash.
 // Either part may be empty
 
-void os_path::split_nt(std::string & head, std::string & tail, const std::string & path)
+void os_pathw::split_nt(std::wstring & head, std::wstring & tail, const std::wstring & path)
 {
 #if 0
-	std::string d, p;
+	std::wstring d, p;
 	splitdrive_nt(d, p, path);
 
 	// set i to index beyond p's last slash
@@ -1556,29 +1423,29 @@ void os_path::split_nt(std::string & head, std::string & tail, const std::string
 		i = i - 1;
 	}
 
-	head = pystring::slice(p, 0, i);
-	tail = pystring::slice(p, i); // now tail has no slashes
+	head = pywstring::slice(p, 0, i);
+	tail = pywstring::slice(p, i); // now tail has no slashes
 
 	// remove trailing slashes from head, unless it's all slashes
-	std::string head2 = head;
-	while (!head2.empty() && ((pystring::slice(head2, -1) == "/") ||
-		(pystring::slice(head2, -1) == "\\")))
+	std::wstring head2 = head;
+	while (!head2.empty() && ((pywstring::slice(head2, -1) == L"/") ||
+		(pywstring::slice(head2, -1) == L"\\")))
 	{
-		head2 = pystring::slice(head2, 0, -1);
+		head2 = pywstring::slice(head2, 0, -1);
 	}
 
 	if (!head2.empty()) head = head2;
 	head = d + head;
 #else
-	int nLen = (int)pystring::length(path);
+	int nLen = (int)pywstring::length(path);
 	while (nLen > 0 && (path[nLen - 1] == '\\' || path[nLen - 1] == '/'))
 	{
 		--nLen;
 	}
 	if (nLen <= 0)
 	{
-		head = "";
-		tail = "";
+		head = L"";
+		tail = L"";
 		return;
 	}
 
@@ -1600,13 +1467,13 @@ void os_path::split_nt(std::string & head, std::string & tail, const std::string
 	{
 		if (path.find(':') == std::string::npos)
 		{
-			head = "";
+			head = L"";
 			tail = path.substr(0, nLen);
 		}
 		else
 		{
 			head = path.substr(0, nLen);
-			tail = "";
+			tail = L"";
 		}
 		return;
 	}
@@ -1622,35 +1489,35 @@ void os_path::split_nt(std::string & head, std::string & tail, const std::string
 // '/' in the path, head  will be empty.
 // Trailing '/'es are stripped from head unless it is the root.
 
-void os_path::split_posix(std::string & head, std::string & tail, const std::string & path)
+void os_pathw::split_posix(std::wstring & head, std::wstring & tail, const std::wstring & path)
 {
 #if 0
-	int i = pystring::rfind(p, "/") + 1;
+	int i = pywstring::rfind(p, L"/") + 1;
 
-	head = pystring::slice(p, 0, i);
-	tail = pystring::slice(p, i);
+	head = pywstring::slice(p, 0, i);
+	tail = pywstring::slice(p, i);
 
-	if (!head.empty() && (head != pystring::mul("/", (int)head.size())))
+	if (!head.empty() && (head != pywstring::mul(L"/", (int)head.size())))
 	{
-		head = pystring::rstrip(head, "/");
+		head = pywstring::rstrip(head, L"/");
 	}
 #else
-	int nLen = (int)pystring::length(path);
+	int nLen = (int)pywstring::length(path);
 	while (nLen > 0 && path[nLen - 1] == '/')
 	{
 		--nLen;
 	}
 	if (nLen <= 0)
 	{
-		head = "";
-		tail = "";
+		head = L"";
+		tail = L"";
 		return;
 	}
 
 	size_t idx1 = path.rfind('/', nLen - 1);
 	if (idx1 == std::string::npos)
 	{
-		head = "";
+		head = L"";
 		tail = path.substr(0, nLen);
 		return;
 	}
@@ -1660,7 +1527,7 @@ void os_path::split_posix(std::string & head, std::string & tail, const std::str
 #endif
 }
 
-void os_path::split(std::string & head, std::string & tail, const std::string & path)
+void os_pathw::split(std::wstring & head, std::wstring & tail, const std::wstring & path)
 {
 #ifdef WINDOWS
 	return split_nt(head, tail, path);
@@ -1674,49 +1541,49 @@ void os_path::split(std::string & head, std::string & tail, const std::string & 
 ///
 ///
 
-std::string os_path::basename_nt(const std::string & path)
+std::wstring os_pathw::basename_nt(const std::wstring & path)
 {
-	std::string head, tail;
+	std::wstring head, tail;
 	split_nt(head, tail, path);
 	return tail;
 }
 
-std::string os_path::basename_posix(const std::string & path)
+std::wstring os_pathw::basename_posix(const std::wstring & path)
 {
-	std::string head, tail;
+	std::wstring head, tail;
 	split_posix(head, tail, path);
 	return tail;
 }
 
-std::string os_path::basename_no_ext(const std::string & path)
+std::wstring os_pathw::basename_no_ext(const std::wstring & path)
 {
-	if (pystring::endswith(path, "\\") || pystring::endswith(path, "/"))
-		return "";
+	if (pywstring::endswith(path, L"\\") || pywstring::endswith(path, L"/"))
+		return L"";
 
-	std::string bn = basename(path);
+	std::wstring bn = basename(path);
 	size_t idx = bn.find_last_of('.');
-	if (idx != std::string::npos)
+	if (idx != std::wstring::npos)
 		return bn.substr(0, idx);
 	else
 		return bn;
 }
 
-std::string os_path::extension(const std::string & path)
+std::wstring os_pathw::extension(const std::wstring & path)
 {
-	if (pystring::endswith(path, "\\") || pystring::endswith(path, "/"))
-		return "";
+	if (pywstring::endswith(path, L"\\") || pywstring::endswith(path, L"/"))
+		return L"";
 
 	size_t idx = path.find_last_of('.');
-	if (idx == std::string::npos)
-		return "";
+	if (idx == std::wstring::npos)
+		return L"";
 
-	std::string ext = path.substr(idx + 1);
-	if (ext.find('/') != std::string::npos || ext.find('\\') != std::string::npos)
-		return "";
+	std::wstring ext = path.substr(idx + 1);
+	if (ext.find('/') != std::wstring::npos || ext.find('\\') != std::wstring::npos)
+		return L"";
 	return ext;
 }
 
-std::string os_path::basename(const std::string & path)
+std::wstring os_pathw::basename(const std::wstring & path)
 {
 #ifdef WINDOWS
 	return basename_nt(path);
@@ -1725,21 +1592,21 @@ std::string os_path::basename(const std::string & path)
 #endif
 }
 
-std::string os_path::dirname_nt(const std::string & path)
+std::wstring os_pathw::dirname_nt(const std::wstring & path)
 {
-	std::string head, tail;
+	std::wstring head, tail;
 	split_nt(head, tail, path);
 	return head;
 }
 
-std::string os_path::dirname_posix(const std::string & path)
+std::wstring os_pathw::dirname_posix(const std::wstring & path)
 {
-	std::string head, tail;
+	std::wstring head, tail;
 	split_posix(head, tail, path);
 	return head;
 }
 
-std::string os_path::dirname(const std::string & path)
+std::wstring os_pathw::dirname(const std::wstring & path)
 {
 #ifdef WINDOWS
 	return dirname_nt(path);
@@ -1754,12 +1621,12 @@ std::string os_path::dirname(const std::string & path)
 ///
 
 // Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A\B.
-std::string os_path::normpath_nt(const std::string & p)
+std::wstring os_pathw::normpath_nt(const std::wstring & p)
 {
-	std::string path = p;
-	path = pystring::replace(path, "/", "\\");
+	std::wstring path = p;
+	path = pywstring::replace(path, L"/", L"\\");
 
-	std::string prefix;
+	std::wstring prefix;
 	splitdrive_nt(prefix, path, path);
 
 	// We need to be careful here. If the prefix is empty, and the path starts
@@ -1775,41 +1642,41 @@ std::string os_path::normpath_nt(const std::string & p)
 	if (prefix.empty())
 	{
 		// No drive letter - preserve initial backslashes
-		while (pystring::slice(path, 0, 1) == "\\")
+		while (pywstring::slice(path, 0, 1) == L"\\")
 		{
-			prefix = prefix + "\\";
-			path = pystring::slice(path, 1);
+			prefix = prefix + L"\\";
+			path = pywstring::slice(path, 1);
 		}
 	}
 	else
 	{
 		// We have a drive letter - collapse initial backslashes
-		if (pystring::startswith(path, "\\"))
+		if (pywstring::startswith(path, L"\\"))
 		{
-			prefix = prefix + "\\";
-			path = pystring::lstrip(path, "\\");
+			prefix = prefix + L"\\";
+			path = pywstring::lstrip(path, L"\\");
 		}
 	}
 
-	std::vector<std::string> comps;
-	pystring::split(path, comps, "\\");
+	std::vector<std::wstring> comps;
+	pywstring::split(path, comps, L"\\");
 
 	int i = 0;
 
 	while (i < (int)comps.size())
 	{
-		if (comps[i].empty() || comps[i] == ".")
+		if (comps[i].empty() || comps[i] == L".")
 		{
 			comps.erase(comps.begin() + i);
 		}
-		else if (comps[i] == "..")
+		else if (comps[i] == L"..")
 		{
-			if (i > 0 && comps[i - 1] != "..")
+			if (i > 0 && comps[i - 1] != L"..")
 			{
 				comps.erase(comps.begin() + i - 1, comps.begin() + i + 1);
 				i -= 1;
 			}
-			else if (i == 0 && pystring::endswith(prefix, "\\"))
+			else if (i == 0 && pywstring::endswith(prefix, L"\\"))
 			{
 				comps.erase(comps.begin() + i);
 			}
@@ -1827,10 +1694,10 @@ std::string os_path::normpath_nt(const std::string & p)
 	// If the path is now empty, substitute '.'
 	if (prefix.empty() && comps.empty())
 	{
-		comps.push_back(".");
+		comps.push_back(L".");
 	}
 
-	return prefix + pystring::join("\\", comps);
+	return prefix + pywstring::join(L"\\", comps);
 }
 
 // Normalize a path, e.g. A//B, A/./B and A/foo/../B all become A/B.
@@ -1838,32 +1705,32 @@ std::string os_path::normpath_nt(const std::string & p)
 // if it contains symbolic links!
 // Normalize path, eliminating double slashes, etc.
 
-std::string os_path::normpath_posix(const std::string & p)
+std::wstring os_pathw::normpath_posix(const std::wstring & p)
 {
-	if (p.empty()) return ".";
+	if (p.empty()) return L".";
 
-	std::string path = p;
+	std::wstring path = p;
 
-	int initial_slashes = pystring::startswith(path, "/") ? 1 : 0;
+	int initial_slashes = pywstring::startswith(path, L"/") ? 1 : 0;
 
 	// POSIX allows one or two initial slashes, but treats three or more
 	// as single slash.
 
-	if (initial_slashes && pystring::startswith(path, "//")
-		&& !pystring::startswith(path, "///"))
+	if (initial_slashes && pywstring::startswith(path, L"//")
+		&& !pywstring::startswith(path, L"///"))
 		initial_slashes = 2;
 
-	std::vector<std::string> comps, new_comps;
-	pystring::split(path, comps, "/");
+	std::vector<std::wstring> comps, new_comps;
+	pywstring::split(path, comps, L"/");
 
 	for (unsigned int i = 0; i < comps.size(); ++i)
 	{
-		std::string comp = comps[i];
-		if (comp.empty() || comp == ".")
+		std::wstring comp = comps[i];
+		if (comp.empty() || comp == L".")
 			continue;
 
-		if ((comp != "..") || ((initial_slashes == 0) && new_comps.empty()) ||
-			(!new_comps.empty() && new_comps[new_comps.size() - 1] == ".."))
+		if ((comp != L"..") || ((initial_slashes == 0) && new_comps.empty()) ||
+			(!new_comps.empty() && new_comps[new_comps.size() - 1] == L".."))
 		{
 			new_comps.push_back(comp);
 		}
@@ -1873,16 +1740,16 @@ std::string os_path::normpath_posix(const std::string & p)
 		}
 	}
 
-	path = pystring::join("/", new_comps);
+	path = pywstring::join(L"/", new_comps);
 
 	if (initial_slashes > 0)
-		path = pystring::mul("/", initial_slashes) + path;
+		path = pywstring::mul(L"/", initial_slashes) + path;
 
-	if (path.empty()) return ".";
+	if (path.empty()) return L".";
 	return path;
 }
 
-bool os_path::equal_path(const std::string & path1, const std::string & path2)
+bool os_pathw::equal_path(const std::wstring & path1, const std::wstring & path2)
 {
 #ifdef WINDOWS
 	return equal_path_nt(path1, path2);
@@ -1891,36 +1758,36 @@ bool os_path::equal_path(const std::string & path1, const std::string & path2)
 #endif
 }
 
-bool os_path::equal_path_nt(const std::string & path1, const std::string & path2)
+bool os_pathw::equal_path_nt(const std::wstring & path1, const std::wstring & path2)
 {	
-	std::string _path1 = normpath(path1);
-	std::string _path2 = normpath(path2);
+	std::wstring _path1 = normpath(path1);
+	std::wstring _path2 = normpath(path2);
 
-	if (pystring::endswith(_path1, "\\"))
+	if (pywstring::endswith(_path1, L"\\"))
 		_path1[_path1.size()-1] = '\0';
-	if (pystring::endswith(_path2, "\\"))
+	if (pywstring::endswith(_path2, L"\\"))
 		_path2[_path2.size()-1] = '\0';
 
-	_path1 = pystring::lower(_path1);
-	_path2 = pystring::lower(_path2);
+	_path1 = pywstring::lower(_path1);
+	_path2 = pywstring::lower(_path2);
 
-	return pystring::equal(_path1, _path2);
+	return pywstring::equal(_path1, _path2);
 }
 
-bool os_path::equal_path_posix(const std::string & path1, const std::string & path2)
+bool os_pathw::equal_path_posix(const std::wstring & path1, const std::wstring & path2)
 {
-	std::string _path1 = normpath(path1);
-	std::string _path2 = normpath(path2);
+	std::wstring _path1 = normpath(path1);
+	std::wstring _path2 = normpath(path2);
 
-	if (pystring::endswith(_path1, "/"))
+	if (pywstring::endswith(_path1, L"/"))
 		_path1[_path1.size()-1] = '\0';
-	if (pystring::endswith(_path2, "/"))
+	if (pywstring::endswith(_path2, L"/"))
 		_path2[_path2.size()-1] = '\0';
-	
-	return pystring::equal(_path1, _path2);
+
+	return pywstring::equal(_path1, _path2);
 }
 
-std::string os_path::normpath(const std::string & path)
+std::wstring os_pathw::normpath(const std::wstring & path)
 {
 #ifdef WINDOWS
 	return normpath_nt(path);
@@ -1938,20 +1805,20 @@ std::string os_path::normpath(const std::string & path)
 // leading dots.  Returns "(root, ext)"; ext may be empty.
 // It is always true that root + ext == p
 
-static void splitext_generic(std::string & root, std::string & ext,
-	const std::string & p,
-	const std::string & sep,
-	const std::string & altsep,
-	const std::string & extsep)
+static void splitext_generic(std::wstring & root, std::wstring & ext,
+	const std::wstring & p,
+	const std::wstring & sep,
+	const std::wstring & altsep,
+	const std::wstring & extsep)
 {
-	int sepIndex = pystring::rfind(p, sep);
+	int sepIndex = pywstring::rfind(p, sep);
 	if (!altsep.empty())
 	{
-		int altsepIndex = pystring::rfind(p, altsep);
+		int altsepIndex = pywstring::rfind(p, altsep);
 		sepIndex = std::max<>(sepIndex, altsepIndex);
 	}
 
-	int dotIndex = pystring::rfind(p, extsep);
+	int dotIndex = pywstring::rfind(p, extsep);
 	if (dotIndex > sepIndex)
 	{
 		// Skip all leading dots
@@ -1959,10 +1826,10 @@ static void splitext_generic(std::string & root, std::string & ext,
 
 		while (filenameIndex < dotIndex)
 		{
-			if (pystring::slice(p, filenameIndex) != extsep)
+			if (pywstring::slice(p, filenameIndex) != extsep)
 			{
-				root = pystring::slice(p, 0, dotIndex);
-				ext = pystring::slice(p, dotIndex);
+				root = pywstring::slice(p, 0, dotIndex);
+				ext = pywstring::slice(p, dotIndex);
 				return;
 			}
 
@@ -1971,22 +1838,22 @@ static void splitext_generic(std::string & root, std::string & ext,
 	}
 
 	root = p;
-	ext = "";
+	ext = L"";
 }
 
-void os_path::splitext_nt(std::string & root, std::string & ext, const std::string & path)
+void os_pathw::splitext_nt(std::wstring & root, std::wstring & ext, const std::wstring & path)
 {
 	return splitext_generic(root, ext, path,
-		"\\", "/", ".");
+		L"\\", L"/", L".");
 }
 
-void os_path::splitext_posix(std::string & root, std::string & ext, const std::string & path)
+void os_pathw::splitext_posix(std::wstring & root, std::wstring & ext, const std::wstring & path)
 {
 	return splitext_generic(root, ext, path,
-		"/", "", ".");
+		L"/", L"", L".");
 }
 
-void os_path::splitext(std::string & root, std::string & ext, const std::string & path)
+void os_pathw::splitext(std::wstring & root, std::wstring & ext, const std::wstring & path)
 {
 #ifdef WINDOWS
 	return splitext_nt(root, ext, path);
@@ -1994,4 +1861,5 @@ void os_path::splitext(std::string & root, std::string & ext, const std::string 
 	return splitext_posix(root, ext, path);
 #endif
 }
+
 
